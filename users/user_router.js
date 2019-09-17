@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const session = require('express-session');
 
 const db = require('./user_model.js');
 
