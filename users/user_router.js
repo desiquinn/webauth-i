@@ -8,12 +8,12 @@ const router = express.Router();
 
 
 router.post('/register', (req, res) => {
-    let {username, password} = req.body;
-    const hash = bcrypt.hashSync(password);
+    const {username, password} = req.body;
+    const hash = bcrypt.hashSync(password, 8);
 
     db.add({username, password: hash})
         .then(saved => {
-            res.status(200).json(saved)
+            res.status(201).json(saved)
         })
         .catch(err => {
             console.log(err);
@@ -22,13 +22,13 @@ router.post('/register', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
-    let { username, password } = req.body;
+    const { username, password } = req.body;
     
-    Users.findBy({ username })
+    db.findBy({ username })
         .first()
         .then(user => {
-            if (user) {
-                res.status(200).json(user.username);
+            if (user && bcrypt.compareSync(password, user.password)) {
+                res.status(200).json(`${user.username} logged in`);
             } else {
                 res.status(401).json({ message: 'Invalid Credentials' });
             }
@@ -38,7 +38,7 @@ router.post('/login', (req, res) => {
         });
 });
 
-router.get('/users', (req, res) => {
+router.get('/users', validation, (req, res) => {
     db.find()
         .then(users => {
             res.status(200).json(users)
@@ -58,8 +58,21 @@ router.get('/hash', (req, res) => {
 
 //middleware
 
-function validation() {
+function validation( req, res, next) {
+    const {username, password} = req.headers;
 
+    db.findBy({ username })
+        .first()
+        .then(user => {
+            if (user && bcrypt.compareSync(password, user.password)) {
+                next();
+            } else {
+                res.status(403).json({ message: 'Not Aunthorized' });
+            }
+        })
+        .catch(error => {
+            res.status(500).json(error);
+        });
 }
 
 
