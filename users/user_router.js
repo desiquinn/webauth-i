@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const session = require('express-session');
+
 
 const db = require('./user_model.js');
 
@@ -24,11 +24,10 @@ router.post('/register', (req, res) => {
 
 router.post('/login', (req, res) => {
     const { username, password } = req.body;
-    
     db.findBy({ username })
-        .first()
         .then(user => {
             if (user && bcrypt.compareSync(password, user.password)) {
+                req.session.user= user;
                 res.status(200).json(`${user.username} logged in`);
             } else {
                 res.status(401).json({ message: 'Invalid Credentials' });
@@ -50,30 +49,36 @@ router.get('/users', validation, (req, res) => {
         })
 });
 
-router.get('/hash', (req, res) => {
-    const name = req.query.name;
-
-    const hash = bcrypt.hashSync(name, 10);
-    res.send(`The hash for ${name} is ${hash}`)
+router.get('/logout', (req, res) => {
+    if(req.session) {
+        req.session.destroy(error => {
+            if(error) {
+                res.status(500).json({message: 'unable to logout'})
+            } else {
+            res.status(200).json({message: 'bye'})
+            }
+        });
+    } else {
+        res.status(200).json({message: 'already logged out'})
+    }
 })
+
+// router.get('/hash', (req, res) => {
+//     const name = req.query.name;
+
+//     const hash = bcrypt.hashSync(name, 10);
+//     res.send(`The hash for ${name} is ${hash}`)
+// })
 
 //middleware
 
 function validation( req, res, next) {
-    const {username, password} = req.headers;
 
-    db.findBy({ username })
-        .first()
-        .then(user => {
-            if (user && bcrypt.compareSync(password, user.password)) {
-                next();
-            } else {
-                res.status(403).json({ message: 'Not Aunthorized' });
-            }
-        })
-        .catch(error => {
-            res.status(500).json(error);
-        });
+    if (req.session && req.session.user) {
+        next();
+    } else {
+        res.status(403).json({ message: 'You Shall Not Pass' });
+    }
 }
 
 
